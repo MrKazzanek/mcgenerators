@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Generator okręgu/koła/elipsy — Minecraft (Dark)</title>
+  <title>Generator okręgu/koła/elipsy — MCG - MCGenerators</title>
   <style>
     :root{
       --bg:#0b0b0d;         /* tło prawie czarne */
@@ -58,7 +58,23 @@
     .side-header{display:flex; align-items:center; justify-content:space-between; margin-bottom:8px}
     .chip{font-size:11px; padding:4px 8px; border:1px solid #2a3142; border-radius:999px; color:var(--muted)}
     .side-list{display:grid; gap:10px; margin-top:10px}
-    .side-item{display:flex; align-items:center; gap:10px; padding:10px; border:1px dashed #273043; border-radius:12px; opacity:.7}
+    .side-item{
+      display:flex; align-items:center; gap:10px; padding:10px; border:1px dashed #273043; border-radius:12px; opacity:.7;
+      text-decoration: none; color: inherit; transition: all .2s ease;
+    }
+    .side-item:hover {
+      opacity: 1;
+      border-color: #3c4a6e;
+      background: #191c2a;
+    }
+    .side-item.active {
+      opacity: 1;
+      border-style: solid;
+      color: white;
+      border-color: #26324d;
+      background: linear-gradient(180deg, #1f2c4a, #18233b);
+    }
+    .side-item.active .muted { color: var(--accent); }
     .side-item .icon{width:26px; height:26px; border-radius:8px; background:linear-gradient(135deg,#192136,#1f2944); display:grid; place-items:center; font-size:14px}
 
     /* Main */
@@ -108,23 +124,18 @@
 
     .footer{padding:8px 12px; font-size:12px; color:var(--muted); border-top:1px solid #1b1d24}
 
-    /* Zmiana 4: Pełna responsywność */
     @media (max-width: 1100px){
       .app {
-        /* Usuwamy kolumnę paska bocznego z głównej siatki */
         grid-template-columns: 1fr;
       }
       .sidebar {
-        /* Całkowicie ukrywamy pasek boczny */
         display: none;
       }
       main {
-        /* Ustawienia i siatka układają się pionowo */
         grid-template-columns: 1fr;
-        padding: 8px; /* Zmniejszamy padding na mniejszych ekranach */
+        padding: 8px;
       }
       header .hint {
-        /* Ukrywamy podpowiedź w nagłówku, aby zaoszczędzić miejsce */
         display: none;
       }
     }
@@ -133,7 +144,7 @@
 <body>
   <div class="app">
     <header>
-      <div class="brand"><span class="dot"></span> MC Shape Lab <span class="muted">· Generator elips/okregów</span></div>
+      <div class="brand"><span class="dot"></span> MCG - MCGenerators <span class="muted">· Generator elips/okregów</span></div>
       <div class="hint">Podpowiedzi: <span class="kbd">LPM</span> — zaznaczanie, <span class="kbd">PPM</span> — odznaczanie. Przytrzymaj, aby zaznaczyć wiele. <span class="kbd">Ctrl/⌘+Z</span> cofanie, <span class="kbd">Ctrl/⌘+Y</span> ponów.</div>
     </header>
 
@@ -144,14 +155,18 @@
       <div class="side-content">
         <div class="side-card">
           <div class="side-header">
-            <strong>Generatory (wkrótce)</strong>
+            <strong>Generatory</strong>
             <span class="chip">beta</span>
           </div>
           <div class="side-list">
-            <div class="side-item"><div class="icon">◯</div><div>Koło / Elipsa <span class="muted">(aktywny)</span></div></div>
-            <div class="side-item"><div class="icon">▭</div><div>Prostokąt / Ramka</div></div>
-            <div class="side-item"><div class="icon">🔺</div><div>Trójkąt izometryczny</div></div>
-            <div class="side-item"><div class="icon">⬡</div><div>Heks pierścień</div></div>
+            <a href="circle.html" class="side-item active">
+              <div class="icon">◯</div>
+              <div>Koło / Elipsa <span class="muted">(aktywny)</span></div>
+            </a>
+            <a href="square.html" class="side-item">
+              <div class="icon">▭</div>
+              <div>Prostokąt Kwadrat</div>
+            </a>
           </div>
         </div>
       </div>
@@ -309,7 +324,7 @@
     function clamp(n, a, b){return Math.max(a, Math.min(b, n));}
 
     function pushHistory(action){
-      state.history.push(action); state.future = []; // czyścimy przyszłość po nowej akcji
+      state.history.push(action); state.future = [];
       if(state.history.length>200) state.history.shift();
     }
 
@@ -363,7 +378,7 @@
       const thickness = clamp(parseInt(els.thickness.value||1),1,50);
       state.diameterX = dx; state.diameterY = dy; state.mode = mode; state.thickness = thickness;
 
-      const rx = Math.floor(dx/2); // promień w blokach w osi X
+      const rx = Math.floor(dx/2);
       const ry = Math.floor(dy/2);
       const cells = new Set();
 
@@ -482,9 +497,7 @@
 
     // ====== Interakcja na canvasie ======
     function canvasToCell(clientX, clientY){
-      // Zmiana 3: Naprawa skalowania siatki przy zoomie
       const rect = els.canvas.getBoundingClientRect();
-      // Normalizacja współrzędnych myszy do wewnętrznej rozdzielczości canvasa
       const scaleX = rect.width / els.canvas.width;
       const scaleY = rect.height / els.canvas.height;
       const canvasX = (clientX - rect.left) / scaleX;
@@ -526,11 +539,10 @@
       dragStart = {c:col, r:row};
       dragInfo = { active: true, button: e.button };
 
-      // Zmiana 1: Ulepszona obsługa pojedynczych kliknięć
       if(!state.snapDrag){
         const k = key(gridX, gridY);
         if(state.required.has(k)){
-          const place = e.button === 0; // LPM = stawianie, PPM = niszczenie
+          const place = e.button === 0;
           const prev = state.placed.has(k);
           let changed = false;
           if(place && !prev) {
@@ -614,7 +626,7 @@
       const title = `Elipsa/Koło — ${state.diameterX}×${state.diameterY}  |  Tryb: ${state.mode}${state.mode!=='outline'?' ('+state.thickness+')':''}  |  Bloki: ${state.required.size}`;
       c.fillText(title, m, H-34);
       c.fillStyle = '#94a3b8'; c.font = '12px ui-sans-serif, system-ui';
-      c.fillText('Wygenerowano w MC Shape Lab', m, H-16);
+      c.fillText('Wygenerowano w MCG - MCGenerators', m, H-16);
       const url = off.toDataURL('image/png');
       const a = document.createElement('a'); a.href=url; a.download=`mc-ellipse-${state.diameterX}x${state.diameterY}-${state.mode}.png`;
       a.click();
@@ -697,12 +709,13 @@
     }
 
     // ====== Zdarzenia UI ======
-    // Zmiana 2: Globalna blokada menu kontekstowego
     window.addEventListener('contextmenu', e => e.preventDefault());
 
-    els.toggleSidebar.addEventListener('click', ()=>{
-      els.sidebar.classList.toggle('collapsed');
-    });
+    if (els.sidebar) {
+      els.toggleSidebar.addEventListener('click', ()=>{
+        els.sidebar.classList.toggle('collapsed');
+      });
+    }
 
     document.querySelectorAll('.preset').forEach(btn=>{
       btn.addEventListener('click', ()=>{
