@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Generator okręgu/koła/elipsy — Minecraft (Dark)</title>
+  <style>
+    :root{
+      --bg:#0b0b0d;         /* tło prawie czarne */
+      --panel:#111216;      /* panele */
+      --panel-2:#0e0f12;
+      --text:#e8e8ef;       /* tekst jasny */
+      --muted:#a8abb8;      /* tekst drugorzędny */
+      --accent:#6ee7ff;     /* akcent */
+      --accent-2:#8b5cf6;   /* akcent 2 */
+      --good:#22c55e;       /* postawione */
+      --warn:#f59e0b;       /* ostrzeżenia */
+      --bad:#ef4444;        /* brakujące */
+      --grid:#1d1f26;       /* linie siatki */
+      --card:#151823;       /* karty */
+      --shadow: 0 10px 30px rgba(0,0,0,.45), 0 2px 10px rgba(0,0,0,.35);
+      --radius: 16px;
+      --radius-sm: 12px;
+      --radius-lg: 22px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;}
+    body{
+      margin:0; background:linear-gradient(180deg,var(--bg),#090a0c 60%); color:var(--text);
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
+      line-height:1.45;
+      overflow:hidden;
+    }
+
+    /* Layout */
+    .app{display:grid; grid-template-columns: auto 1fr; grid-template-rows: auto 1fr; height:100%;}
+    header{
+      grid-column:1 / -1; display:flex; align-items:center; gap:14px; padding:12px 16px; background:linear-gradient(180deg,#0e0f12,#0c0d10);
+      border-bottom:1px solid #1b1d24; position:relative; z-index:2;
+    }
+    .brand{display:flex; align-items:center; gap:10px; font-weight:700; letter-spacing:.3px}
+    .brand .dot{width:12px; height:12px; border-radius:50%; background:linear-gradient(135deg,var(--accent),var(--accent-2)); box-shadow:0 0 12px rgba(110,231,255,.5)}
+    .muted{color:var(--muted)}
+
+    /* Sidebar */
+    .sidebar{width:300px; background:linear-gradient(180deg,var(--panel),var(--panel-2)); border-right:1px solid #1b1d24; position:relative; transition:width .25s ease; overflow:hidden}
+    .sidebar.collapsed{width:72px}
+    .toggle-btn{
+      position:absolute; top:12px; left:12px; z-index:3;
+      background:#0f1117; border:1px solid #1f2330; color:var(--text); border-radius:12px; height:40px; width:44px; display:grid; place-items:center; cursor:pointer;
+      box-shadow: var(--shadow);
+      transition: left .25s ease;
+    }
+    .sidebar.collapsed .toggle-btn{left: 14px;} /* Zmiana 1: Centrowanie przycisku */
+    .side-content{height:100%; padding:64px 14px 14px; transition: opacity .2s ease, visibility .2s ease;} /* Zmiana 1: Dodanie transition */
+    .sidebar.collapsed .side-content{opacity:0; visibility:hidden;} /* Zmiana 1: Ukrywanie zawartości */
+    .side-card{background:var(--card); border:1px solid #1f2330; border-radius:var(--radius); padding:14px; box-shadow:var(--shadow);}
+    .side-header{display:flex; align-items:center; justify-content:space-between; margin-bottom:8px}
+    .chip{font-size:11px; padding:4px 8px; border:1px solid #2a3142; border-radius:999px; color:var(--muted)}
+    .side-list{display:grid; gap:10px; margin-top:10px}
+    .side-item{display:flex; align-items:center; gap:10px; padding:10px; border:1px dashed #273043; border-radius:12px; opacity:.7}
+    .side-item .icon{width:26px; height:26px; border-radius:8px; background:linear-gradient(135deg,#192136,#1f2944); display:grid; place-items:center; font-size:14px}
+
+    /* Main */
+    main{display:grid; grid-template-columns: 400px 1fr; gap:16px; padding:16px; overflow:hidden}
+    .panel{background:var(--panel); border:1px solid #1b1d24; border-radius:var(--radius); box-shadow:var(--shadow); overflow:auto;}
+    .panel-inner{padding:16px}
+    .grid-wrap{background:var(--panel); border:1px solid #1b1d24; border-radius:var(--radius); box-shadow:var(--shadow); display:grid; grid-template-rows:auto 1fr auto; overflow:hidden}
+
+    .toolbar{display:flex; flex-wrap:wrap; gap:10px; align-items:center; padding:12px; border-bottom:1px solid #1b1d24; background:linear-gradient(180deg,#0f1014,#0c0d10)}
+    .toolbar .group{display:flex; gap:8px; align-items:center}
+    label.small{font-size:12px; color:var(--muted)}
+    input[type="number"], input[type="text"], select{
+      background:#0f1117; color:var(--text); border:1px solid #232838; border-radius:12px; padding:10px 12px; min-width:80px; outline:none; transition:border .2s ease, box-shadow .2s ease;
+    }
+    input[type="number"]:focus, select:focus{border-color:#33405f; box-shadow:0 0 0 3px rgba(139,92,246,.25)}
+    input[type="range"]{accent-color:var(--accent)}
+
+    .btn{background:linear-gradient(180deg,#1a243a,#152036); border:1px solid #26324d; border-radius:12px; color:#eaf6ff; padding:10px 14px; cursor:pointer; font-weight:600; letter-spacing:.2px}
+    .btn:hover{filter:brightness(1.05)}
+    .btn.secondary{background:#0f1117; border-color:#22283a; color:var(--text)}
+    .btn.ghost{background:transparent; border:1px dashed #2a3142; color:var(--muted)}
+    .btn.warn{background:linear-gradient(180deg,#2b1a14,#1c120e); border-color:#3f241b; color:#ffd9cf}
+
+    .card{background:var(--card); border:1px solid #1f2330; border-radius:var(--radius); padding:14px;}
+    .grid-bar{display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 12px; border-bottom:1px solid #1b1d24}
+    .canvas-wrap{position:relative; overflow:auto}
+    canvas{background:#0b0c10; display:block; margin:0; image-rendering: pixelated;}
+    .selection-rect{position:absolute; border:1px dashed var(--accent); pointer-events:none; background:rgba(110,231,255,.12); border-radius:8px}
+
+    /* Zmiana 2: Niestandardowe paski przewijania */
+    .canvas-wrap::-webkit-scrollbar { width: 14px; height: 14px; }
+    .canvas-wrap::-webkit-scrollbar-track { background: var(--panel-2); }
+    .canvas-wrap::-webkit-scrollbar-thumb {
+        background-color: var(--grid);
+        border-radius: 8px;
+        border: 4px solid var(--panel-2);
+    }
+    .canvas-wrap::-webkit-scrollbar-thumb:hover { background-color: var(--accent-2); }
+
+
+    .stats{display:grid; grid-template-columns: repeat(3,1fr); gap:10px; padding:10px; border-top:1px solid #1b1d24; background:linear-gradient(180deg,#0f1014,#0c0d10)}
+    .stat{display:grid; gap:6px; background:#0f1117; border:1px solid #1f2330; border-radius:12px; padding:10px}
+    .stat h4{margin:0; font-size:12px; color:var(--muted); font-weight:600}
+    .stat .val{font-size:18px; font-weight:800}
+
+    .hint{font-size:12px; color:var(--muted)}
+    .kbd{padding:2px 6px; border:1px solid #2a3142; border-radius:6px; background:#0f1117; color:#c6d3ff; font-size:11px}
+
+    .footer{padding:8px 12px; font-size:12px; color:var(--muted); border-top:1px solid #1b1d24}
+
+    @media (max-width: 1100px){
+      main{grid-template-columns: 1fr;}
+      .sidebar{display:none}
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="brand"><span class="dot"></span> MC Shape Lab <span class="muted">· Generator elips/okregów</span></div>
+      <div class="hint">Podpowiedzi: <span class="kbd">LPM</span> — zaznaczanie, <span class="kbd">PPM</span> — odznaczanie. Przytrzymaj, aby zaznaczyć wiele. <span class="kbd">Ctrl/⌘+Z</span> cofanie, <span class="kbd">Ctrl/⌘+Y</span> ponów.</div>
+    </header>
+
+    <aside id="sidebar" class="sidebar">
+      <button class="toggle-btn" id="toggleSidebar" title="Pokaż/Schowaj panel">
+        ☰
+      </button>
+      <div class="side-content">
+        <div class="side-card">
+          <div class="side-header">
+            <strong>Generatory (wkrótce)</strong>
+            <span class="chip">beta</span>
+          </div>
+          <div class="side-list">
+            <div class="side-item"><div class="icon">◯</div><div>Koło / Elipsa <span class="muted">(aktywny)</span></div></div>
+            <div class="side-item"><div class="icon">▭</div><div>Prostokąt / Ramka</div></div>
+            <div class="side-item"><div class="icon">🔺</div><div>Trójkąt izometryczny</div></div>
+            <div class="side-item"><div class="icon">⬡</div><div>Heks pierścień</div></div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <main>
+      <!-- Ustawienia -->
+      <section class="panel" aria-label="Ustawienia generatora">
+        <div class="panel-inner">
+          <div class="card" style="margin-bottom:12px">
+            <div style="display:grid; gap:12px">
+              <div style="display:grid; grid-template-columns: repeat(2,1fr); gap:10px">
+                <label>
+                  <label class="small">Szerokość (średnica X)</label>
+                  <input id="diameterX" type="number" min="1" max="501" value="31"/>
+                </label>
+                <label>
+                  <label class="small">Wysokość (średnica Y)</label>
+                  <input id="diameterY" type="number" min="1" max="501" value="31"/>
+                </label>
+              </div>
+
+              <div style="display:grid; grid-template-columns: repeat(2,1fr); gap:10px">
+                <label>
+                  <label class="small">Tryb</label>
+                  <select id="mode">
+                    <option value="outline">Obrys</option>
+                    <option value="fill">Wypełnione</option>
+                    <option value="ring">Pierścień (grubość)</option>
+                  </select>
+                </label>
+                <label>
+                  <label class="small">Grubość pierścienia / linii</label>
+                  <input id="thickness" type="number" min="1" max="50" value="1"/>
+                </label>
+              </div>
+
+              <div style="display:grid; grid-template-columns: repeat(2,1fr); gap:10px">
+                <label>
+                  <label class="small">Skala siatki (px/blok)</label>
+                  <input id="scale" type="range" min="8" max="32" value="18"/>
+                </label>
+                <label>
+                  <label class="small">Margines (px)</label>
+                  <input id="margin" type="number" min="0" max="80" value="10"/>
+                </label>
+              </div>
+
+              <div style="display:flex; gap:10px; flex-wrap:wrap">
+                <button id="generate" class="btn">Generuj</button>
+                <button id="resetPlaced" class="btn secondary">Wyczyść postawione</button>
+                <button id="exportPng" class="btn">Zapisz PNG</button>
+                <button id="copyCoords" class="btn ghost">Skopiuj koordy</button>
+                <button id="savePlan" class="btn ghost">Eksportuj plan (.json)</button>
+                <button id="loadPlan" class="btn ghost">Wczytaj plan</button>
+              </div>
+
+              <div class="hint">Dodatki: <strong>lokalne zapisy</strong> (auto), <strong>cofanie/ponów</strong>, <strong>export PNG z siatką i wymiarami</strong>, <strong>kopiowanie współrzędnych</strong>.</div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div style="display:grid; gap:8px">
+              <div class="small" style="color:var(--muted)">Presety (średnica X×Y)</div>
+              <div style="display:flex; flex-wrap:wrap; gap:8px">
+                <button class="btn secondary preset" data-x="17" data-y="17">17×17 (małe koło)</button>
+                <button class="btn secondary preset" data-x="31" data-y="31">31×31 (popularne)</button>
+                <button class="btn secondary preset" data-x="47" data-y="31">47×31 (elipsa)</button>
+                <button class="btn secondary preset" data-x="63" data-y="63">63×63 (duże)</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Płótno / siatka -->
+      <section class="grid-wrap" aria-label="Siatka projektu">
+        <div class="grid-bar">
+          <div class="group">
+            <label class="small"><input type="checkbox" id="toggleGrid" checked> Pokaż siatkę</label>
+            <label class="small"><input type="checkbox" id="toggleCoords"> Pokaż osie (0,0)</label>
+            <label class="small"><input type="checkbox" id="snapDrag" checked> Zaznaczaj prostokątem</label>
+          </div>
+          <div class="group">
+            <button id="undo" class="btn secondary" title="Cofnij (Ctrl/⌘+Z)">Cofnij</button>
+            <button id="redo" class="btn secondary" title="Ponów (Ctrl/⌘+Y)">Ponów</button>
+          </div>
+        </div>
+        <div class="canvas-wrap" id="canvasWrap">
+          <canvas id="canvas" width="800" height="600" aria-label="Siatka klocków">Twoja przeglądarka nie wspiera &lt;canvas&gt;.</canvas>
+          <div class="selection-rect" id="selectionRect" hidden></div>
+        </div>
+        <div class="stats">
+          <div class="stat"><h4>Łącznie bloków</h4><div class="val" id="statTotal">0</div></div>
+          <div class="stat"><h4>Postawiono</h4><div class="val" id="statPlaced">0</div></div>
+          <div class="stat"><h4>Pozostało</h4><div class="val" id="statLeft">0</div></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    // ====== Stan aplikacji ======
+    const state = {
+      diameterX: 31,
+      diameterY: 31,
+      mode: 'outline',
+      thickness: 1,
+      scale: 18,
+      margin: 10,
+      showGrid: true,
+      showAxes: false,
+      snapDrag: true,
+      required: new Set(), // "x,y"
+      placed: new Set(),   // "x,y"
+      history: [],
+      future: [],
+    };
+
+    // ====== Elementy DOM ======
+    const els = {
+      sidebar: document.getElementById('sidebar'),
+      toggleSidebar: document.getElementById('toggleSidebar'),
+      diameterX: document.getElementById('diameterX'),
+      diameterY: document.getElementById('diameterY'),
+      mode: document.getElementById('mode'),
+      thickness: document.getElementById('thickness'),
+      scale: document.getElementById('scale'),
+      margin: document.getElementById('margin'),
+      generate: document.getElementById('generate'),
+      resetPlaced: document.getElementById('resetPlaced'),
+      exportPng: document.getElementById('exportPng'),
+      copyCoords: document.getElementById('copyCoords'),
+      savePlan: document.getElementById('savePlan'),
+      loadPlan: document.getElementById('loadPlan'),
+      toggleGrid: document.getElementById('toggleGrid'),
+      toggleCoords: document.getElementById('toggleCoords'),
+      snapDrag: document.getElementById('snapDrag'),
+      canvas: document.getElementById('canvas'),
+      wrap: document.getElementById('canvasWrap'),
+      sel: document.getElementById('selectionRect'),
+      statTotal: document.getElementById('statTotal'),
+      statPlaced: document.getElementById('statPlaced'),
+      statLeft: document.getElementById('statLeft'),
+      undo: document.getElementById('undo'),
+      redo: document.getElementById('redo'),
+    };
+
+    const ctx = els.canvas.getContext('2d');
+
+    // ====== Utils ======
+    const key = (x,y)=>`${x},${y}`;
+    const unkey = s => s.split(',').map(Number);
+
+    function clamp(n, a, b){return Math.max(a, Math.min(b, n));}
+
+    function pushHistory(action){
+      state.history.push(action); state.future = []; // czyścimy przyszłość po nowej akcji
+      if(state.history.length>200) state.history.shift();
+    }
+
+    function applySelection(rect, place=true){
+      const cells = rectToCells(rect);
+      const changed = [];
+      for(const c of cells){
+        if(state.required.has(c)){
+          const had = state.placed.has(c);
+          if(place && !had){ state.placed.add(c); changed.push([c,false,true]); }
+          if(!place && had){ state.placed.delete(c); changed.push([c,true,false]); }
+        }
+      }
+      if(changed.length){
+        pushHistory({type:'batch', ops:changed});
+        updateStats();
+        draw();
+        persist();
+      }
+    }
+
+    function undo(){
+      const a = state.history.pop(); if(!a) return;
+      if(a.type==='batch'){
+        for(let i=a.ops.length-1;i>=0;i--){
+          const [c, was, now] = a.ops[i];
+          if(was) state.placed.add(c); else state.placed.delete(c);
+        }
+      } else if(a.type==='toggle'){
+        const {cell, prev} = a; if(prev) state.placed.add(cell); else state.placed.delete(cell);
+      }
+      state.future.push(a);
+      updateStats(); draw(); persist();
+    }
+    function redo(){
+      const a = state.future.pop(); if(!a) return;
+      if(a.type==='batch'){
+        for(const [c,was,now] of a.ops){ if(now) state.placed.add(c); else state.placed.delete(c); }
+      } else if(a.type==='toggle'){
+        const {cell, prev} = a; if(prev) state.placed.delete(cell); else state.placed.add(cell);
+      }
+      state.history.push(a);
+      updateStats(); draw(); persist();
+    }
+
+    // ====== Generowanie kształtu ======
+    function generate(){
+      const dx = clamp(parseInt(els.diameterX.value||state.diameterX),1,501);
+      const dy = clamp(parseInt(els.diameterY.value||state.diameterY),1,501);
+      const mode = els.mode.value;
+      const thickness = clamp(parseInt(els.thickness.value||1),1,50);
+      state.diameterX = dx; state.diameterY = dy; state.mode = mode; state.thickness = thickness;
+
+      const rx = Math.floor(dx/2); // promień w blokach w osi X
+      const ry = Math.floor(dy/2);
+      const cells = new Set();
+
+      if(mode==='fill' || mode==='ring'){
+        // Wypełnienie skanliniowe wnętrza elipsy
+        const addFilled = (rx, ry)=>{
+          for(let y=-ry; y<=ry; y++){
+            const y2 = (y*y)/(ry*ry);
+            const maxX = Math.floor(rx * Math.sqrt(Math.max(0,1 - y2)));
+            for(let x=-maxX; x<=maxX; x++) cells.add(key(x,y));
+          }
+        };
+        if(mode==='fill'){
+          addFilled(rx, ry);
+        } else {
+          const rxi = Math.max(0, rx - Math.floor(thickness));
+          const ryi = Math.max(0, ry - Math.floor(thickness));
+          const outer = new Set();
+          const inner = new Set();
+          // outer
+          for(let y=-ry; y<=ry; y++){
+            const y2 = (ry===0)?0:(y*y)/(ry*ry);
+            const maxX = Math.floor(rx * Math.sqrt(Math.max(0,1 - y2)));
+            for(let x=-maxX; x<=maxX; x++) outer.add(key(x,y));
+          }
+          // inner (erodowana elipsa)
+          for(let y=-ryi; y<=ryi; y++){
+            const y2 = (ryi===0)?0:(y*y)/(ryi*ryi);
+            const maxX = Math.floor(rxi * Math.sqrt(Math.max(0,1 - y2)));
+            for(let x=-maxX; x<=maxX; x++) inner.add(key(x,y));
+          }
+          for(const c of outer){ if(!inner.has(c)) cells.add(c); }
+        }
+      } else {
+        // Obrys: próbkujemy gęsto kąt i zaokrąglamy do najbliższej kratki
+        const steps = Math.max(180, Math.ceil(Math.PI * (rx+ry) * 4));
+        const addPoint = (x,y)=>{ cells.add(key(Math.round(x), Math.round(y))); };
+        for(let i=0;i<steps;i++){
+          const t = (i/steps) * Math.PI*2;
+          const x = rx * Math.cos(t);
+          const y = ry * Math.sin(t);
+          addPoint(x,y);
+        }
+        // rozszerzenie grubości linii, jeśli >1
+        const th = Math.max(1, Math.floor(state.thickness));
+        if(th>1){
+          const copy = Array.from(cells).map(unkey);
+          for(const [x,y] of copy){
+            for(let dx=-th; dx<=th; dx++) for(let dy=-th; dy<=th; dy++){
+              if(Math.abs(dx)+Math.abs(dy) <= th) cells.add(key(x+dx,y+dy));
+            }
+          }
+        }
+      }
+
+      state.required = cells;
+      state.placed = new Set();
+      state.history = []; state.future = [];
+      updateCanvasSize();
+      updateStats();
+      draw();
+      persist();
+    }
+
+    // ====== Rysowanie ======
+    function updateCanvasSize(){
+      const s = parseInt(els.scale.value||state.scale); state.scale = s;
+      const margin = parseInt(els.margin.value||state.margin); state.margin = margin;
+      // rozmiar siatki: dodaj 1, by mieć pełne bloki
+      const rx = Math.floor(state.diameterX/2), ry=Math.floor(state.diameterY/2);
+      const cols = rx*2+1, rows = ry*2+1;
+      const w = cols * s + margin*2; const h = rows * s + margin*2;
+      els.canvas.width = Math.max(200, w);
+      els.canvas.height = Math.max(200, h);
+    }
+
+    function draw(){
+      const {width:w, height:h} = els.canvas;
+      ctx.clearRect(0,0,w,h);
+      const s = state.scale, m = state.margin;
+      // tło subtelne gradientowe
+      const g = ctx.createLinearGradient(0,0,0,h);
+      g.addColorStop(0,'#0a0b0f'); g.addColorStop(1,'#08090c');
+      ctx.fillStyle = g; ctx.fillRect(0,0,w,h);
+
+      // siatka
+      if(state.showGrid){
+        ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--grid');
+        ctx.lineWidth = 1; ctx.beginPath();
+        const rx = Math.floor(state.diameterX/2), ry=Math.floor(state.diameterY/2);
+        const cols = rx*2+1, rows = ry*2+1;
+        for(let c=0;c<=cols;c++){ const x=m + c*s + .5; ctx.moveTo(x,m); ctx.lineTo(x,m+rows*s); }
+        for(let r=0;r<=rows;r++){ const y=m + r*s + .5; ctx.moveTo(m,y); ctx.lineTo(m+cols*s,y); }
+        ctx.stroke();
+      }
+
+      // osie
+      if(state.showAxes){
+        const rx = Math.floor(state.diameterX/2), ry=Math.floor(state.diameterY/2);
+        const cols = rx*2+1, rows = ry*2+1;
+        const zeroX = m + rx*s; const zeroY = m + ry*s;
+        ctx.strokeStyle = 'rgba(139,92,246,.7)'; ctx.lineWidth=2; ctx.beginPath();
+        ctx.moveTo(m, zeroY+.5); ctx.lineTo(m+cols*s, zeroY+.5);
+        ctx.moveTo(zeroX+.5, m); ctx.lineTo(zeroX+.5, m+rows*s);
+        ctx.stroke();
+      }
+
+      // rysuj wymagane i postawione
+      const colorPlaced = '#22c55e';
+      const colorMissing = '#cbd5e1';
+      const colorShadow = 'rgba(0,0,0,.22)';
+
+      const rx = Math.floor(state.diameterX/2), ry=Math.floor(state.diameterY/2);
+      const cols = rx*2+1, rows = ry*2+1;
+
+      // cienie
+      ctx.shadowColor = colorShadow; ctx.shadowBlur = 6; ctx.shadowOffsetY = 2;
+
+      for(const c of state.required){
+        const [x,y] = unkey(c);
+        const col = x+rx, row = ry - y; // oś Y w górę
+        const px = state.margin + col*state.scale;
+        const py = state.margin + row*state.scale;
+        ctx.fillStyle = state.placed.has(c) ? colorPlaced : colorMissing;
+        ctx.fillRect(px+1, py+1, state.scale-2, state.scale-2);
+      }
+      ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+
+      // ramka
+      ctx.strokeStyle = 'rgba(255,255,255,.08)'; ctx.strokeRect(0.5,0.5,w-1,h-1);
+    }
+
+    // ====== Interakcja na canvasie ======
+    function canvasToCell(clientX, clientY){
+      const rect = els.canvas.getBoundingClientRect();
+      const x = clientX - rect.left - state.margin;
+      const y = clientY - rect.top - state.margin;
+      const col = Math.floor(x / state.scale);
+      const row = Math.floor(y / state.scale);
+      const rx = Math.floor(state.diameterX/2), ry=Math.floor(state.diameterY/2);
+      const gridX = col - rx; // -rx..rx
+      const gridY = ry - row; // ry..-ry (odwracamy)
+      return {gridX, gridY, col, row};
+    }
+
+    function rectToCells(rect){
+      const rx = Math.floor(state.diameterX/2), ry=Math.floor(state.diameterY/2);
+      const cells = [];
+      const minCol = clamp(Math.min(rect.c1, rect.c2), 0, rx*2);
+      const maxCol = clamp(Math.max(rect.c1, rect.c2), 0, rx*2);
+      const minRow = clamp(Math.min(rect.r1, rect.r2), 0, ry*2);
+      const maxRow = clamp(Math.max(rect.r1, rect.r2), 0, ry*2);
+      for(let col=minCol; col<=maxCol; col++){
+        for(let row=minRow; row<=maxRow; row++){
+          const gridX = col - rx; const gridY = ry - row;
+          cells.push(key(gridX, gridY));
+        }
+      }
+      return cells;
+    }
+
+    // Zmiana 3: Nowa logika sterowania
+    let dragInfo = { active: false, button: 0 }; // 0=LPM, 2=PPM
+    let dragStart = null;
+
+    els.canvas.addEventListener('contextmenu', (e) => e.preventDefault()); // Blokada PPM
+
+    els.canvas.addEventListener('mousedown', (e)=>{
+      e.preventDefault();
+      const {gridX, gridY, col, row} = canvasToCell(e.clientX, e.clientY);
+      dragStart = {c:col, r:row};
+      dragInfo = { active: true, button: e.button };
+
+      if(!state.snapDrag){
+        const k = key(gridX, gridY);
+        if(state.required.has(k)){
+          const place = e.button === 0; // LPM = stawianie
+          const prev = state.placed.has(k);
+          let changed = false;
+          if(place && !prev) {
+             state.placed.add(k);
+             changed = true;
+          } else if (!place && prev) {
+             state.placed.delete(k);
+             changed = true;
+          }
+          if (changed) {
+            pushHistory({type:'toggle', cell:k, prev});
+            updateStats(); draw(); persist();
+          }
+        }
+      }
+    });
+    els.canvas.addEventListener('mousemove', (e)=>{
+      if(!dragInfo.active || !state.snapDrag) return;
+      const {col, row} = canvasToCell(e.clientX, e.clientY);
+      const c1 = Math.min(dragStart.c, col), c2 = Math.max(dragStart.c, col);
+      const r1 = Math.min(dragStart.r, row), r2 = Math.max(dragStart.r, row);
+      const x = state.margin + c1*state.scale;
+      const y = state.margin + r1*state.scale;
+      const w = (c2-c1+1)*state.scale;
+      const h = (r2-r1+1)*state.scale;
+      els.sel.style.left = x + 'px';
+      els.sel.style.top = y + 'px';
+      els.sel.style.width = w + 'px';
+      els.sel.style.height = h + 'px';
+      els.sel.hidden = false;
+      els.sel.dataset.c1 = c1; els.sel.dataset.c2 = c2; els.sel.dataset.r1=r1; els.sel.dataset.r2=r2;
+    });
+    window.addEventListener('mouseup', (e)=>{
+      if(!dragInfo.active) return;
+      if(state.snapDrag && !els.sel.hidden){
+        const rect = {
+          c1: parseInt(els.sel.dataset.c1), c2: parseInt(els.sel.dataset.c2),
+          r1: parseInt(els.sel.dataset.r1), r2: parseInt(els.sel.dataset.r2)
+        };
+        const place = dragInfo.button === 0; // Użyj zapamiętanego przycisku
+        applySelection({ c1:rect.c1, c2:rect.c2, r1:rect.r1, r2:rect.r2 }, place);
+      }
+      dragInfo.active = false;
+      els.sel.hidden = true;
+    });
+
+    // ====== Statystyki ======
+    function updateStats(){
+      const total = state.required.size;
+      const placed = state.placed.size;
+      els.statTotal.textContent = total;
+      els.statPlaced.textContent = placed;
+      els.statLeft.textContent = Math.max(0, total-placed);
+    }
+
+    // ====== Eksport PNG ======
+    function exportPNG(){
+      const s = state.scale, m = state.margin;
+      const rx = Math.floor(state.diameterX/2), ry=Math.floor(state.diameterY/2);
+      const cols = rx*2+1, rows = ry*2+1;
+      const W = cols * s + m*2; const H = rows * s + m*2 + 60; // miejsce na podpis
+      const off = document.createElement('canvas'); off.width=W; off.height=H; const c = off.getContext('2d');
+      c.fillStyle = '#0b0c10'; c.fillRect(0,0,W,H);
+      // siatka
+      c.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--grid'); c.lineWidth = 1; c.beginPath();
+      for(let col=0; col<=cols; col++){ const x=m + col*s + .5; c.moveTo(x,m); c.lineTo(x,m+rows*s); }
+      for(let row=0; row<=rows; row++){ const y=m + row*s + .5; c.moveTo(m,y); c.lineTo(m+cols*s,y); }
+      c.stroke();
+      // osie krzyżowe lekko
+      c.strokeStyle = 'rgba(139,92,246,.6)'; c.lineWidth=2; c.beginPath();
+      const zeroX = m + rx*s + .5; const zeroY = m + ry*s + .5;
+      c.moveTo(m,zeroY); c.lineTo(m+cols*s,zeroY);
+      c.moveTo(zeroX,m); c.lineTo(zeroX,m+rows*s);
+      c.stroke();
+      // klocki
+      for(const cell of state.required){
+        const [x,y] = unkey(cell);
+        const col = x+rx, row = ry - y;
+        const px = m + col*s; const py = m + row*s;
+        c.fillStyle = state.placed.has(cell) ? '#22c55e' : '#e2e8f0';
+        c.fillRect(px+1, py+1, s-2, s-2);
+      }
+      // podpis
+      c.fillStyle = '#cbd5e1'; c.font = '600 14px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial';
+      const title = `Elipsa/Koło — ${state.diameterX}×${state.diameterY}  |  Tryb: ${state.mode}${state.mode!=='outline'?' ('+state.thickness+')':''}  |  Bloki: ${state.required.size}`;
+      c.fillText(title, m, H-34);
+      c.fillStyle = '#94a3b8'; c.font = '12px ui-sans-serif, system-ui';
+      c.fillText('Wygenerowano w MC Shape Lab', m, H-16);
+
+      // pobierz
+      const url = off.toDataURL('image/png');
+      const a = document.createElement('a'); a.href=url; a.download=`mc-ellipse-${state.diameterX}x${state.diameterY}-${state.mode}.png`;
+      a.click();
+    }
+
+    // ====== Kopiowanie koordów ======
+    function copyCoords(){
+      const arr = Array.from(state.required).map(unkey).sort((a,b)=> a[1]-b[1] || a[0]-b[0]);
+      const txt = arr.map(([x,y])=>`${x} ${y} 0`).join('\n'); // Z użyciem Y w górę (Z=0)
+      navigator.clipboard.writeText(txt).then(()=>{
+        toast('Skopiowano współrzędne (x y z=0) do schowka.');
+      }).catch(()=>{
+        alert('Nie udało się skopiować.');
+      });
+    }
+
+    // ====== Eksport / Import planu ======
+    function savePlan(){
+      const data = {
+        version:1,
+        diameterX: state.diameterX,
+        diameterY: state.diameterY,
+        mode: state.mode,
+        thickness: state.thickness,
+        required: Array.from(state.required),
+        placed: Array.from(state.placed),
+        scale: state.scale,
+        margin: state.margin
+      };
+      const blob = new Blob([JSON.stringify(data)],{type:'application/json'});
+      const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`mc-shape-plan-${Date.now()}.json`; a.click();
+    }
+
+    function loadPlan(){
+      const inp = document.createElement('input'); inp.type='file'; inp.accept='.json,application/json';
+      inp.onchange = (e)=>{
+        const file = e.target.files[0]; if(!file) return;
+        file.text().then(t=>{
+          const d = JSON.parse(t);
+          if(!d || !d.required){ alert('Niepoprawny plik.'); return; }
+          state.diameterX = d.diameterX; state.diameterY = d.diameterY; state.mode=d.mode; state.thickness=d.thickness||1; state.scale=d.scale||state.scale; state.margin=d.margin||state.margin;
+          els.diameterX.value = state.diameterX; els.diameterY.value=state.diameterY; els.mode.value=state.mode; els.thickness.value=state.thickness; els.scale.value=state.scale; els.margin.value=state.margin;
+          state.required = new Set(d.required); state.placed = new Set(d.placed||[]); state.history=[]; state.future=[];
+          updateCanvasSize(); updateStats(); draw(); persist();
+        }).catch(()=> alert('Błąd podczas wczytywania.'));
+      };
+      inp.click();
+    }
+
+    // ====== LocalStorage ======
+    const LS_KEY = 'mc-shape-lab-v1';
+    function persist(){
+      try{
+        const data = {
+          diameterX: state.diameterX, diameterY: state.diameterY, mode: state.mode, thickness: state.thickness,
+          scale: state.scale, margin: state.margin, showGrid: state.showGrid, showAxes: state.showAxes, snapDrag: state.snapDrag,
+          required: Array.from(state.required), placed: Array.from(state.placed)
+        };
+        localStorage.setItem(LS_KEY, JSON.stringify(data));
+      }catch(e){/* ignore */}
+    }
+    function restore(){
+      try{
+        const t = localStorage.getItem(LS_KEY); if(!t) return false; const d = JSON.parse(t);
+        Object.assign(state, d, { required: new Set(d.required||[]), placed: new Set(d.placed||[]) });
+        els.diameterX.value=state.diameterX; els.diameterY.value=state.diameterY; els.mode.value=state.mode; els.thickness.value=state.thickness;
+        els.scale.value=state.scale; els.margin.value=state.margin; els.toggleGrid.checked=state.showGrid; els.toggleCoords.checked=state.showAxes; els.snapDrag.checked=state.snapDrag;
+        updateCanvasSize(); updateStats(); draw();
+        return true;
+      }catch(e){ return false; }
+    }
+
+    // ====== Toast ======
+    function toast(msg){
+      const t = document.createElement('div');
+      t.textContent = msg; t.style.position='fixed'; t.style.right='16px'; t.style.bottom='16px'; t.style.padding='10px 14px'; t.style.background='#111827'; t.style.border='1px solid #253046'; t.style.borderRadius='12px'; t.style.boxShadow='var(--shadow)'; t.style.opacity='0'; t.style.transition='opacity .2s ease, transform .2s ease'; t.style.transform='translateY(6px)';
+      document.body.appendChild(t); requestAnimationFrame(()=>{t.style.opacity='1'; t.style.transform='translateY(0)';});
+      setTimeout(()=>{ t.style.opacity='0'; t.style.transform='translateY(6px)'; setTimeout(()=>t.remove(),200); }, 2200);
+    }
+
+    // ====== Zdarzenia UI ======
+    els.toggleSidebar.addEventListener('click', ()=>{
+      els.sidebar.classList.toggle('collapsed');
+    });
+
+    document.querySelectorAll('.preset').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        els.diameterX.value = btn.dataset.x; els.diameterY.value = btn.dataset.y; generate();
+      });
+    });
+
+    els.generate.addEventListener('click', generate);
+    els.resetPlaced.addEventListener('click', ()=>{ state.placed = new Set(); state.history=[]; state.future=[]; updateStats(); draw(); persist(); });
+    els.exportPng.addEventListener('click', exportPNG);
+    els.copyCoords.addEventListener('click', copyCoords);
+    els.savePlan.addEventListener('click', savePlan);
+    els.loadPlan.addEventListener('click', loadPlan);
+
+    els.scale.addEventListener('input', ()=>{ updateCanvasSize(); draw(); persist(); });
+    els.margin.addEventListener('change', ()=>{ updateCanvasSize(); draw(); persist(); });
+    els.toggleGrid.addEventListener('change', ()=>{ state.showGrid = els.toggleGrid.checked; draw(); persist(); });
+    els.toggleCoords.addEventListener('change', ()=>{ state.showAxes = els.toggleCoords.checked; draw(); persist(); });
+    els.snapDrag.addEventListener('change', ()=>{ state.snapDrag = els.snapDrag.checked; persist(); });
+
+    // Undo/Redo + skróty
+    els.undo.addEventListener('click', undo); els.redo.addEventListener('click', redo);
+    window.addEventListener('keydown', (e)=>{
+      if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='z'){ e.preventDefault(); undo(); }
+      if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='y'){ e.preventDefault(); redo(); }
+    });
+
+    // ====== Start ======
+    if(!restore()){
+      generate();
+    }
+  </script>
+</body>
+</html>
