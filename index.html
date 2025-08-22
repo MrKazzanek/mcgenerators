@@ -144,7 +144,7 @@
 <body>
   <div class="app">
     <header>
-      <div class="brand"><span class="dot"></span> MCG - MCGenerators <span class="muted">· Generator elips/okregów</span></div>
+      <div class="brand"><span class="dot"></span> MCGenerators <span class="muted">· Generator elips/okregów</span></div>
       <div class="hint">Podpowiedzi: <span class="kbd">LPM</span> — zaznaczanie, <span class="kbd">PPM</span> — odznaczanie. Przytrzymaj, aby zaznaczyć wiele. <span class="kbd">Ctrl/⌘+Z</span> cofanie, <span class="kbd">Ctrl/⌘+Y</span> ponów.</div>
     </header>
 
@@ -626,7 +626,7 @@
       const title = `Elipsa/Koło — ${state.diameterX}×${state.diameterY}  |  Tryb: ${state.mode}${state.mode!=='outline'?' ('+state.thickness+')':''}  |  Bloki: ${state.required.size}`;
       c.fillText(title, m, H-34);
       c.fillStyle = '#94a3b8'; c.font = '12px ui-sans-serif, system-ui';
-      c.fillText('Wygenerowano w MCG - MCGenerators', m, H-16);
+      c.fillText('Wygenerowano w MCGenerators', m, H-16);
       const url = off.toDataURL('image/png');
       const a = document.createElement('a'); a.href=url; a.download=`mc-ellipse-${state.diameterX}x${state.diameterY}-${state.mode}.png`;
       a.click();
@@ -749,4 +749,5 @@
   </script>
 </body>
 </html>
+
 
