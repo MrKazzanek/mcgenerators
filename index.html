@@ -51,9 +51,9 @@
       box-shadow: var(--shadow);
       transition: left .25s ease;
     }
-    .sidebar.collapsed .toggle-btn{left: 14px;} /* Zmiana 1: Centrowanie przycisku */
-    .side-content{height:100%; padding:64px 14px 14px; transition: opacity .2s ease, visibility .2s ease;} /* Zmiana 1: Dodanie transition */
-    .sidebar.collapsed .side-content{opacity:0; visibility:hidden;} /* Zmiana 1: Ukrywanie zawartości */
+    .sidebar.collapsed .toggle-btn{left: 14px;}
+    .side-content{height:100%; padding:64px 14px 14px; transition: opacity .2s ease, visibility .2s ease;}
+    .sidebar.collapsed .side-content{opacity:0; visibility:hidden;}
     .side-card{background:var(--card); border:1px solid #1f2330; border-radius:var(--radius); padding:14px; box-shadow:var(--shadow);}
     .side-header{display:flex; align-items:center; justify-content:space-between; margin-bottom:8px}
     .chip{font-size:11px; padding:4px 8px; border:1px solid #2a3142; border-radius:999px; color:var(--muted)}
@@ -88,7 +88,6 @@
     canvas{background:#0b0c10; display:block; margin:0; image-rendering: pixelated;}
     .selection-rect{position:absolute; border:1px dashed var(--accent); pointer-events:none; background:rgba(110,231,255,.12); border-radius:8px}
 
-    /* Zmiana 2: Niestandardowe paski przewijania */
     .canvas-wrap::-webkit-scrollbar { width: 14px; height: 14px; }
     .canvas-wrap::-webkit-scrollbar-track { background: var(--panel-2); }
     .canvas-wrap::-webkit-scrollbar-thumb {
@@ -109,9 +108,25 @@
 
     .footer{padding:8px 12px; font-size:12px; color:var(--muted); border-top:1px solid #1b1d24}
 
+    /* Zmiana 4: Pełna responsywność */
     @media (max-width: 1100px){
-      main{grid-template-columns: 1fr;}
-      .sidebar{display:none}
+      .app {
+        /* Usuwamy kolumnę paska bocznego z głównej siatki */
+        grid-template-columns: 1fr;
+      }
+      .sidebar {
+        /* Całkowicie ukrywamy pasek boczny */
+        display: none;
+      }
+      main {
+        /* Ustawienia i siatka układają się pionowo */
+        grid-template-columns: 1fr;
+        padding: 8px; /* Zmniejszamy padding na mniejszych ekranach */
+      }
+      header .hint {
+        /* Ukrywamy podpowiedź w nagłówku, aby zaoszczędzić miejsce */
+        display: none;
+      }
     }
   </style>
 </head>
@@ -353,7 +368,6 @@
       const cells = new Set();
 
       if(mode==='fill' || mode==='ring'){
-        // Wypełnienie skanliniowe wnętrza elipsy
         const addFilled = (rx, ry)=>{
           for(let y=-ry; y<=ry; y++){
             const y2 = (y*y)/(ry*ry);
@@ -368,13 +382,11 @@
           const ryi = Math.max(0, ry - Math.floor(thickness));
           const outer = new Set();
           const inner = new Set();
-          // outer
           for(let y=-ry; y<=ry; y++){
             const y2 = (ry===0)?0:(y*y)/(ry*ry);
             const maxX = Math.floor(rx * Math.sqrt(Math.max(0,1 - y2)));
             for(let x=-maxX; x<=maxX; x++) outer.add(key(x,y));
           }
-          // inner (erodowana elipsa)
           for(let y=-ryi; y<=ryi; y++){
             const y2 = (ryi===0)?0:(y*y)/(ryi*ryi);
             const maxX = Math.floor(rxi * Math.sqrt(Math.max(0,1 - y2)));
@@ -383,7 +395,6 @@
           for(const c of outer){ if(!inner.has(c)) cells.add(c); }
         }
       } else {
-        // Obrys: próbkujemy gęsto kąt i zaokrąglamy do najbliższej kratki
         const steps = Math.max(180, Math.ceil(Math.PI * (rx+ry) * 4));
         const addPoint = (x,y)=>{ cells.add(key(Math.round(x), Math.round(y))); };
         for(let i=0;i<steps;i++){
@@ -392,7 +403,6 @@
           const y = ry * Math.sin(t);
           addPoint(x,y);
         }
-        // rozszerzenie grubości linii, jeśli >1
         const th = Math.max(1, Math.floor(state.thickness));
         if(th>1){
           const copy = Array.from(cells).map(unkey);
@@ -417,7 +427,6 @@
     function updateCanvasSize(){
       const s = parseInt(els.scale.value||state.scale); state.scale = s;
       const margin = parseInt(els.margin.value||state.margin); state.margin = margin;
-      // rozmiar siatki: dodaj 1, by mieć pełne bloki
       const rx = Math.floor(state.diameterX/2), ry=Math.floor(state.diameterY/2);
       const cols = rx*2+1, rows = ry*2+1;
       const w = cols * s + margin*2; const h = rows * s + margin*2;
@@ -429,12 +438,10 @@
       const {width:w, height:h} = els.canvas;
       ctx.clearRect(0,0,w,h);
       const s = state.scale, m = state.margin;
-      // tło subtelne gradientowe
       const g = ctx.createLinearGradient(0,0,0,h);
       g.addColorStop(0,'#0a0b0f'); g.addColorStop(1,'#08090c');
       ctx.fillStyle = g; ctx.fillRect(0,0,w,h);
 
-      // siatka
       if(state.showGrid){
         ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--grid');
         ctx.lineWidth = 1; ctx.beginPath();
@@ -445,7 +452,6 @@
         ctx.stroke();
       }
 
-      // osie
       if(state.showAxes){
         const rx = Math.floor(state.diameterX/2), ry=Math.floor(state.diameterY/2);
         const cols = rx*2+1, rows = ry*2+1;
@@ -456,41 +462,42 @@
         ctx.stroke();
       }
 
-      // rysuj wymagane i postawione
       const colorPlaced = '#22c55e';
       const colorMissing = '#cbd5e1';
       const colorShadow = 'rgba(0,0,0,.22)';
-
       const rx = Math.floor(state.diameterX/2), ry=Math.floor(state.diameterY/2);
-      const cols = rx*2+1, rows = ry*2+1;
-
-      // cienie
       ctx.shadowColor = colorShadow; ctx.shadowBlur = 6; ctx.shadowOffsetY = 2;
 
       for(const c of state.required){
         const [x,y] = unkey(c);
-        const col = x+rx, row = ry - y; // oś Y w górę
+        const col = x+rx, row = ry - y;
         const px = state.margin + col*state.scale;
         const py = state.margin + row*state.scale;
         ctx.fillStyle = state.placed.has(c) ? colorPlaced : colorMissing;
         ctx.fillRect(px+1, py+1, state.scale-2, state.scale-2);
       }
       ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
-
-      // ramka
       ctx.strokeStyle = 'rgba(255,255,255,.08)'; ctx.strokeRect(0.5,0.5,w-1,h-1);
     }
 
     // ====== Interakcja na canvasie ======
     function canvasToCell(clientX, clientY){
+      // Zmiana 3: Naprawa skalowania siatki przy zoomie
       const rect = els.canvas.getBoundingClientRect();
-      const x = clientX - rect.left - state.margin;
-      const y = clientY - rect.top - state.margin;
+      // Normalizacja współrzędnych myszy do wewnętrznej rozdzielczości canvasa
+      const scaleX = rect.width / els.canvas.width;
+      const scaleY = rect.height / els.canvas.height;
+      const canvasX = (clientX - rect.left) / scaleX;
+      const canvasY = (clientY - rect.top) / scaleY;
+
+      const x = canvasX - state.margin;
+      const y = canvasY - state.margin;
       const col = Math.floor(x / state.scale);
       const row = Math.floor(y / state.scale);
+
       const rx = Math.floor(state.diameterX/2), ry=Math.floor(state.diameterY/2);
-      const gridX = col - rx; // -rx..rx
-      const gridY = ry - row; // ry..-ry (odwracamy)
+      const gridX = col - rx;
+      const gridY = ry - row;
       return {gridX, gridY, col, row};
     }
 
@@ -510,11 +517,8 @@
       return cells;
     }
 
-    // Zmiana 3: Nowa logika sterowania
-    let dragInfo = { active: false, button: 0 }; // 0=LPM, 2=PPM
+    let dragInfo = { active: false, button: 0 };
     let dragStart = null;
-
-    els.canvas.addEventListener('contextmenu', (e) => e.preventDefault()); // Blokada PPM
 
     els.canvas.addEventListener('mousedown', (e)=>{
       e.preventDefault();
@@ -522,10 +526,11 @@
       dragStart = {c:col, r:row};
       dragInfo = { active: true, button: e.button };
 
+      // Zmiana 1: Ulepszona obsługa pojedynczych kliknięć
       if(!state.snapDrag){
         const k = key(gridX, gridY);
         if(state.required.has(k)){
-          const place = e.button === 0; // LPM = stawianie
+          const place = e.button === 0; // LPM = stawianie, PPM = niszczenie
           const prev = state.placed.has(k);
           let changed = false;
           if(place && !prev) {
@@ -565,7 +570,7 @@
           c1: parseInt(els.sel.dataset.c1), c2: parseInt(els.sel.dataset.c2),
           r1: parseInt(els.sel.dataset.r1), r2: parseInt(els.sel.dataset.r2)
         };
-        const place = dragInfo.button === 0; // Użyj zapamiętanego przycisku
+        const place = dragInfo.button === 0;
         applySelection({ c1:rect.c1, c2:rect.c2, r1:rect.r1, r2:rect.r2 }, place);
       }
       dragInfo.active = false;
@@ -586,21 +591,18 @@
       const s = state.scale, m = state.margin;
       const rx = Math.floor(state.diameterX/2), ry=Math.floor(state.diameterY/2);
       const cols = rx*2+1, rows = ry*2+1;
-      const W = cols * s + m*2; const H = rows * s + m*2 + 60; // miejsce na podpis
+      const W = cols * s + m*2; const H = rows * s + m*2 + 60;
       const off = document.createElement('canvas'); off.width=W; off.height=H; const c = off.getContext('2d');
       c.fillStyle = '#0b0c10'; c.fillRect(0,0,W,H);
-      // siatka
       c.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--grid'); c.lineWidth = 1; c.beginPath();
       for(let col=0; col<=cols; col++){ const x=m + col*s + .5; c.moveTo(x,m); c.lineTo(x,m+rows*s); }
       for(let row=0; row<=rows; row++){ const y=m + row*s + .5; c.moveTo(m,y); c.lineTo(m+cols*s,y); }
       c.stroke();
-      // osie krzyżowe lekko
       c.strokeStyle = 'rgba(139,92,246,.6)'; c.lineWidth=2; c.beginPath();
       const zeroX = m + rx*s + .5; const zeroY = m + ry*s + .5;
       c.moveTo(m,zeroY); c.lineTo(m+cols*s,zeroY);
       c.moveTo(zeroX,m); c.lineTo(zeroX,m+rows*s);
       c.stroke();
-      // klocki
       for(const cell of state.required){
         const [x,y] = unkey(cell);
         const col = x+rx, row = ry - y;
@@ -608,14 +610,11 @@
         c.fillStyle = state.placed.has(cell) ? '#22c55e' : '#e2e8f0';
         c.fillRect(px+1, py+1, s-2, s-2);
       }
-      // podpis
       c.fillStyle = '#cbd5e1'; c.font = '600 14px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial';
       const title = `Elipsa/Koło — ${state.diameterX}×${state.diameterY}  |  Tryb: ${state.mode}${state.mode!=='outline'?' ('+state.thickness+')':''}  |  Bloki: ${state.required.size}`;
       c.fillText(title, m, H-34);
       c.fillStyle = '#94a3b8'; c.font = '12px ui-sans-serif, system-ui';
       c.fillText('Wygenerowano w MC Shape Lab', m, H-16);
-
-      // pobierz
       const url = off.toDataURL('image/png');
       const a = document.createElement('a'); a.href=url; a.download=`mc-ellipse-${state.diameterX}x${state.diameterY}-${state.mode}.png`;
       a.click();
@@ -624,7 +623,7 @@
     // ====== Kopiowanie koordów ======
     function copyCoords(){
       const arr = Array.from(state.required).map(unkey).sort((a,b)=> a[1]-b[1] || a[0]-b[0]);
-      const txt = arr.map(([x,y])=>`${x} ${y} 0`).join('\n'); // Z użyciem Y w górę (Z=0)
+      const txt = arr.map(([x,y])=>`${x} ${y} 0`).join('\n');
       navigator.clipboard.writeText(txt).then(()=>{
         toast('Skopiowano współrzędne (x y z=0) do schowka.');
       }).catch(()=>{
@@ -635,15 +634,9 @@
     // ====== Eksport / Import planu ======
     function savePlan(){
       const data = {
-        version:1,
-        diameterX: state.diameterX,
-        diameterY: state.diameterY,
-        mode: state.mode,
-        thickness: state.thickness,
-        required: Array.from(state.required),
-        placed: Array.from(state.placed),
-        scale: state.scale,
-        margin: state.margin
+        version:1, diameterX: state.diameterX, diameterY: state.diameterY, mode: state.mode,
+        thickness: state.thickness, required: Array.from(state.required), placed: Array.from(state.placed),
+        scale: state.scale, margin: state.margin
       };
       const blob = new Blob([JSON.stringify(data)],{type:'application/json'});
       const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`mc-shape-plan-${Date.now()}.json`; a.click();
@@ -656,9 +649,16 @@
         file.text().then(t=>{
           const d = JSON.parse(t);
           if(!d || !d.required){ alert('Niepoprawny plik.'); return; }
-          state.diameterX = d.diameterX; state.diameterY = d.diameterY; state.mode=d.mode; state.thickness=d.thickness||1; state.scale=d.scale||state.scale; state.margin=d.margin||state.margin;
-          els.diameterX.value = state.diameterX; els.diameterY.value=state.diameterY; els.mode.value=state.mode; els.thickness.value=state.thickness; els.scale.value=state.scale; els.margin.value=state.margin;
-          state.required = new Set(d.required); state.placed = new Set(d.placed||[]); state.history=[]; state.future=[];
+          Object.assign(state, d, {
+              required: new Set(d.required || []),
+              placed: new Set(d.placed || []),
+              thickness: d.thickness || 1,
+              scale: d.scale || 18,
+              margin: d.margin || 10
+          });
+          els.diameterX.value = state.diameterX; els.diameterY.value=state.diameterY; els.mode.value=state.mode;
+          els.thickness.value=state.thickness; els.scale.value=state.scale; els.margin.value=state.margin;
+          state.history=[]; state.future=[];
           updateCanvasSize(); updateStats(); draw(); persist();
         }).catch(()=> alert('Błąd podczas wczytywania.'));
       };
@@ -697,6 +697,9 @@
     }
 
     // ====== Zdarzenia UI ======
+    // Zmiana 2: Globalna blokada menu kontekstowego
+    window.addEventListener('contextmenu', e => e.preventDefault());
+
     els.toggleSidebar.addEventListener('click', ()=>{
       els.sidebar.classList.toggle('collapsed');
     });
@@ -720,7 +723,6 @@
     els.toggleCoords.addEventListener('change', ()=>{ state.showAxes = els.toggleCoords.checked; draw(); persist(); });
     els.snapDrag.addEventListener('change', ()=>{ state.snapDrag = els.snapDrag.checked; persist(); });
 
-    // Undo/Redo + skróty
     els.undo.addEventListener('click', undo); els.redo.addEventListener('click', redo);
     window.addEventListener('keydown', (e)=>{
       if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='z'){ e.preventDefault(); undo(); }
